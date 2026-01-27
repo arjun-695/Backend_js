@@ -1,6 +1,6 @@
 class ApiError extends Error {
   constructor(
-    statusCode,
+    statusCode, // HTTP status code (e.g., 404, 500)
     message = "Something went wrong",
     errors = [],
     statck = ""
@@ -8,7 +8,7 @@ class ApiError extends Error {
     super(message);
     this.statusCode = statusCode;
     this.data = null;
-    this.messaeg = message;
+    this.message = message;
     this.success = false;
     this.errors = errors;
 
