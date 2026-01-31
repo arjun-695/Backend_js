@@ -3,8 +3,7 @@ import dotenv from "dotenv"
 import connectDB from "./db/index.js"
 import {app } from "./app.js"
 
-import express from "express"
-const app = express()
+
 // important points for connecting data base:
 // always use try and catch or promises with database
 // always use async await for database because it is stored far away
