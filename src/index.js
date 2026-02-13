@@ -1,35 +1,32 @@
 // require{'dotenv'}.config({path:'/.env'})
-import dotenv from "dotenv"
-import connectDB from "./db/index.js"
-import {app } from "./app.js"
-
+import dotenv from "dotenv";
+import connectDB from "./db/index.js";
+import { app } from "./app.js";
 
 // important points for connecting data base:
 // always use try and catch or promises with database
 // always use async await for database because it is stored far away
 // because database operations are Time consuming and uncertain
 dotenv.config({
-    path:'./env'
-})
+  path: "./.env",
+});
 connectDB()
-.then( () => {
+  .then(() => {
     app.listen(process.env.PORT || 8000, () => {
-        console.log(`Server is running at port :
+      console.log(`Server is running at port :
              ${process.env.PORT || 8000}`);
     });
 
     app.on("error", (error) => {
-        console.log("Express App Error : ", error);
-        throw error;
+      console.log("Express App Error : ", error);
+      throw error;
     });
-})
-.catch((err) => {
+  })
+  .catch((err) => {
     console.log("Mongo db connection failed !!!", err);
-})
-
+  });
 
 // 2 approaches: everything in 1 file; calling function to database that is on another file
-
 
 /*  commenting because this approach messes the code as it includes everything in 1 single file 
 ;( async () => {
