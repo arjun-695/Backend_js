@@ -4,7 +4,29 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+// method to generate access token and refresh token everytime it is called
+const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    // access Token is given to user and
+    // refresh Token is also saved on DataBase so that the user does not have to enter the password again and again
+    user.refreshToken = refreshToken; // sending refresh token on DB
+    await user.save({ validateBeforeSave: false }); // saving
+    //"validateBeforeSave: false" : everytime we save password also needs to be there but here we don't have password so we are using this method
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Something went wrong while generating refresh and access token"
+    );
+  }
+};
+
 const registerUser = asyncHandler(async (req, res) => {
+  // TO-Do's
   // get user details from frontend
   // validation - not empty
   // check if user already exists : username , email
@@ -49,12 +71,15 @@ const registerUser = asyncHandler(async (req, res) => {
   // getting avatar local path
   const avatarLocalPath = req.files?.avatar[0]?.path; // (LocalPath because it is on server and has not been uploaded to cloudinary still)
 
-  
   // getting image local path
   // const coverImageLocalPath = req.files?.coverImage[0]?.path; this still gives error or is not the opimal way since we are assuming that the coverImage array is always there and we are also not checking it later on in the code. The better way to use this is:
 
   let coverImageLocalPath;
-  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+  if (
+    req.files &&
+    Array.isArray(req.files.coverImage) &&
+    req.files.coverImage.length > 0
+  ) {
     coverImageLocalPath = req.files.coverImage[0].path;
   }
   if (!avatarLocalPath) {
@@ -96,4 +121,96 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, createdUser, "User registered Successfully"));
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+  // TO_DO's
+  // req body -> data
+  // username or email based login
+  // find the user
+  // password check
+  // access and refresh token
+  // send cookie
+
+  // getting username email and password of the user to check
+  const { email, username, password } = req.body;
+  if (!username && !email) {
+    throw new ApiError(400, "username or email is required");
+  }
+
+  // checking for both either email or username to be found
+  const user = await User.findOne({
+    $or: [{ username }, { email }],
+  });
+
+  // if user not found:
+  if (!user) {
+    throw new ApiError(404, "User does not exit");
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid User Credentials");
+  }
+  // if password is correct make access token and refresh token for the user (we'll do this so often that it is better to make a method for it)
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+    user._id
+  ); //this accessToken and refreshToken is used at the time of logout "auth.middleware.jwt" which compares if the user has the right tokens as his DB. if yes then we will add a new object to req.body as used in line 131
+
+  //sending cookies
+  const loggedInUser = await User.findById(user._id).select(
+    "-password,refreshToken"
+  ); //optional step
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  }; //cookies only editable at server when "secure:true and httpOnly:true"
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+          accessToken,
+          refreshToken, // why here again when accessToken and refreshToken set in cookies already? Maybe the user wants to save them locally or himself (Data field)
+        },
+        "User logged in Successfully" //Message
+      )
+    );
+});
+
+//logout:
+const logoutUser = asyncHandler(async (res, req) => {
+  // we don't have details to know which user to logout like we had email/username at the time of logging in
+  // so here we have to use the concept of middleware
+  // we will create our own middle ware for logging out
+   await User.findByIdAndUpdate(req.user._id,
+    {
+      $set:{
+        refreshToken: undefined
+      }
+    },
+    {
+      new:true
+    }
+   )
+
+  const options={
+      httpOnly:true,
+      secure:true
+    }
+    return res
+    .status(200)
+    .clearCookie("accessToken",options)
+    .clearCookie("refreshToken",options)
+    .json(new ApiResponse(200, {}, "User logged Out Successfully"))
+});
+export { registerUser,
+         loginUser,
+         logoutUser,
+};
