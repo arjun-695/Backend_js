@@ -3,6 +3,7 @@ import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
 
 // method to generate access token and refresh token everytime it is called
 const generateAccessAndRefreshToken = async (userId) => {
@@ -132,7 +133,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
   // getting username email and password of the user to check
   const { email, username, password } = req.body;
-  if (!username && !email) {
+  if (!(username || email)) {
+    //either username or email
     throw new ApiError(400, "username or email is required");
   }
 
@@ -159,7 +161,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   //sending cookies
   const loggedInUser = await User.findById(user._id).select(
-    "-password,refreshToken"
+    "-password -refreshToken" // seperated by space and not comma
   ); //optional step
 
   const options = {
@@ -185,32 +187,80 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 //logout:
-const logoutUser = asyncHandler(async (res, req) => {
+const logoutUser = asyncHandler(async (req, res) => {
   // we don't have details to know which user to logout like we had email/username at the time of logging in
   // so here we have to use the concept of middleware
   // we will create our own middle ware for logging out
-   await User.findByIdAndUpdate(req.user._id,
+  await User.findByIdAndUpdate(
+    req.user._id,
     {
-      $set:{
-        refreshToken: undefined
-      }
+      $unset: {
+        refreshToken: 1,
+      },
     },
     {
-      new:true
+      new: true,
     }
-   )
+  );
 
-  const options={
-      httpOnly:true,
-      secure:true
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged Out Successfully"));
+});
+
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingrefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+  //refreshToken needed to reset the Access Token
+  if (!incomingrefreshToken) {
+    throw new ApiError(401, "unauthorized request");
+  }
+  // now if we are getting a refresh Token we have to validate it too
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingrefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+  
+    const user = await User.findById(decodedToken?._id); // while creating refreshToken we included the id of the user using this refresh token we can get the id using which we can use mongoose to get the information about the user
+  
+    if (!user) {
+      throw new ApiError(401, "Invalid Refresh Token");
     }
+  
+    if(incomingrefreshToken !== user?.refreshToken){
+      throw new ApiError(401, "Refresh Token is expired or used");
+    }
+  
+    const options = {
+      httpOnly: true,
+      secure: true
+    }
+  
+    const {accessToken, newrefreshToken} = await generateAccessAndRefreshToken(user._id)
+  
     return res
     .status(200)
-    .clearCookie("accessToken",options)
-    .clearCookie("refreshToken",options)
-    .json(new ApiResponse(200, {}, "User logged Out Successfully"))
+    .cookie("accessToken",accessToken, options)
+    .cookie("refreshToken",newrefreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {accessToken, refreshToken: newRefreshToken},
+        "Access Token Refreshed"
+      )
+    )
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid Refresh Token")
+    
+  }
+
 });
-export { registerUser,
-         loginUser,
-         logoutUser,
-};
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
