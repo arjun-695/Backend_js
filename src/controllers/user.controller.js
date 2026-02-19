@@ -263,4 +263,57 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 
 });
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+
+const changeCurrentPassword = asyncHandler(async(req,res)=> {
+  const {oldPassword, newPassword} = req.body
+
+  const user = await user.findById(req.user?._id)//extracting user details; User is able to change the password that means he is already logged in; Middleware comes into picture when user is logged in since it adds user details to req; Using this req we can get user details
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+  if( !isPasswordCorrect){
+    throw new ApiError(400, "Invalid old Password")
+
+  }
+
+  user.password = newPassword
+  await user.save({validateBeforeSave: false})
+
+  return res.status(200)
+  .json(new ApiResponse(200, {}, "Password changed Successfully"))
+})
+
+const getCurrentUser = asyncHandler(async(req,res)=>{
+  return res.status(200)
+            .json(200,req.user,"Current User fetched Successfully")
+})
+
+const updateAccountDetails = asyncHandler (async(req,res) => {
+  const {fullname, email} = req.body
+
+  if(!fullname || !email){
+    throw new ApiError(400, "Both the fields are required")
+  }
+  const user = User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set:{
+        fullname: fullname,
+        email: email
+      }
+    },
+    {new:true}//update hone ke baad jo information hoti hai wo bhi return karta hai 
+  ).select("-password") // exclude password
+
+  return res
+  .status(200)
+  .json(new ApiResponse(200, user, "Account Details updated successfully"))
+})
+export { registerUser,
+   loginUser, 
+   logoutUser,
+    refreshAccessToken,
+  changeCurrentPassword,
+getCurrentUser,
+updateAccountDetails
+ };
+
