@@ -46,6 +46,6 @@ const videoSchema = new Schema(
     }
 );
 
-videoSchema.plugin(mongooseAggregatePaginate) // mongoose Agregation Pipeline  
+videoSchema.plugin(mongooseAggregatePaginate) // mongoose Aggregation Pipeline  
 
 export const Video = mongoose.model("Video", videoSchema);

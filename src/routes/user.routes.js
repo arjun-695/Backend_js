@@ -35,7 +35,7 @@ router.route("/login").post(loginUser);
 
 //secured Routes only when loggedin
 
-router.route("/refresh=token").post(refreshAccessToken);
+router.route("/refreshtoken").post(refreshAccessToken);
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);
 router.route("/current-user").get(verifyJWT, getCurrentUser);

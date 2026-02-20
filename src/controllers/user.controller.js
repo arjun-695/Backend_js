@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-
+import mongoose from "mongoose";
 // method to generate access token and refresh token everytime it is called
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -73,7 +73,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.files?.avatar[0]?.path; // (LocalPath because it is on server and has not been uploaded to cloudinary still)
 
   // getting image local path
-  // const coverImageLocalPath = req.files?.coverImage[0]?.path; this still gives error or is not the opimal way since we are assuming that the coverImage array is always there and we are also not checking it later on in the code. The better way to use this is:
+  // const coverImageLocalPath = req.files?.coverImage[0]?.path; this still gives error or is not the optimal way since we are assuming that the coverImage array is always there and we are also not checking it later on in the code. The better way to use this is:
 
   let coverImageLocalPath;
   if (
@@ -161,7 +161,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   //sending cookies
   const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshToken" // seperated by space and not comma
+    "-password -refreshToken" // separated by space and not comma
   ); //optional step
 
   const options = {
@@ -244,17 +244,17 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: true,
     };
 
-    const { accessToken, newrefreshToken } =
+    const { accessToken, refreshToken } =
       await generateAccessAndRefreshToken(user._id);
 
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newrefreshToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { accessToken, refreshToken: newRefreshToken },
+          { accessToken, refreshToken: refreshToken },
           "Access Token Refreshed"
         )
       );
@@ -319,7 +319,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
   if (!avatar?.url) {
-    throw new ApiError(400, "Error while uplaoding an avatar");
+    throw new ApiError(400, "Error while uploading an avatar");
   }
 
   const user = await User.findByIdAndUpdate(
@@ -380,6 +380,7 @@ const getUserChannelProfile = asyncHandler(async(req,res) => {
     },
     {
       $lookup:{ // retrieving value for number of subscribers 
+        from: "subscriptions",
         localField:"_id",
         foreignField: "channel",
         as: "subscribers",
@@ -395,7 +396,7 @@ const getUserChannelProfile = asyncHandler(async(req,res) => {
     },
     {
       $addFields: { // for total counts of fields 
-        subsribersCount:{
+        subscribersCount:{
           $size: "$subscribers" //'$' because now it is a field
         },
         channelIsSubscribedToCount:{
@@ -403,7 +404,7 @@ const getUserChannelProfile = asyncHandler(async(req,res) => {
         },
         isSubscribed: {
           $cond:{
-            if: {$in: [req.user?._id,"$subscibers.subscriber"]},
+            if: {$in: [req.user?._id,"$subscribers.subscriber"]},
             then: true,
             else: false
           }
@@ -414,7 +415,7 @@ const getUserChannelProfile = asyncHandler(async(req,res) => {
       $project:{ // fields that we want to send 
         fullname:1,
         username:1,
-        subsribersCount: 1,
+        subscribersCount: 1,
         channelIsSubscribedToCount: 1,
         isSubscribed:1,
         avatar: 1,
@@ -425,7 +426,7 @@ const getUserChannelProfile = asyncHandler(async(req,res) => {
   ])
 
   if (!channel?.length) {
-    throw new ApiError("404","channel does not exist")
+    throw new ApiError(404,"channel does not exist")
   }
 
   return res.status(200)
