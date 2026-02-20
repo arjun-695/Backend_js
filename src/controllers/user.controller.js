@@ -431,6 +431,59 @@ const getUserChannelProfile = asyncHandler(async(req,res) => {
   .json(
     new ApiResponse(200, channel[0], "User Channel fetched successfully")
   )
+
+
+})
+
+const getWatchHistory = asyncHandler(async(req,res)=> {
+  const user = await User.aggregate([
+    {
+      $match:{
+        _id : new mongoose.Types.ObjectId(req.user._id)// to get entire mongoose objectId as it only returns the string when we runs this statement 'req.user._id' which is handled in the backend by mongoose for rest of the code but for aggregation  pipelines the code runs directly and is not handled by mongoose so we have to do this step to get the user id 
+      }
+      
+    },
+    {
+      $lookup:{
+        from : "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline:[
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1
+                  }
+                }
+              ]
+            }
+          },
+          {
+            $addFields: {
+              owner:{
+                $first: "$owner"//to convert the owner array to object.Gets the first element of the array -Frontend guy will get appreciate it.
+              }
+            }
+          }
+        ]
+      }
+    }
+  ])
+  return res.status(200)
+  .json(new ApiResponse(
+    200,
+    user[0].watchHistory,
+    "Watch history fetched successfully"
+  ))
 })
 
 export {
@@ -443,4 +496,6 @@ export {
   updateAccountDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
+  getWatchHistory
 };
