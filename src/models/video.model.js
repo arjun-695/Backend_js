@@ -1,15 +1,31 @@
 import mongoose, { Schema } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
-const videoSchema = new Schema(
+
+
+const videoSchema = mongoose.Schema(
     {
         videoFile: {
-            type: String,
-            required: true
+            url: 
+            {
+                type: String, //for frontend to play the video
+                required: true
+            },
+        public_id: {
+                type: String,
+                required: true
+        }
             
         },
         thumbnail: {
-            type: String,
-            required: true
+           url: 
+            {
+                type: String, //for frontend to play the video
+                required: true
+            },
+        public_id: {
+                type: String,
+                required: true
+        }
 
         },
         title: {
