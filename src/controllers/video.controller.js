@@ -91,27 +91,27 @@ const getAllVideos = asyncHandler(async (req, res) => {
 });
 
 const publishVideo = asyncHandler(async (req, res) => {
-  if (req.user?._id) {
+  if (!req.user?._id) {
     throw new ApiError(400, "Please login and try again");
   }
 
   const { title, description } = req.body;
 
-  if ([title, description].some((field) => field.trim() === "")) {
+  if ([title, description].some((field) => field?.trim() === "")) {
     throw new ApiError(400, "All fields are required.");
   }
 
   const videoFileLocalPath = req.files?.videoFile?.[0]?.path;
   const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
-  if (!(videoFileLocalPath || thumbnailLocalPath)) {
+  if (!videoFileLocalPath || !thumbnailLocalPath) {
     throw new ApiError(400, " Video or Thumbnail is missing");
   }
 
   const videoFile = await uploadOnCloudinary(videoFileLocalPath);
   const thumbnailFile = await uploadOnCloudinary(thumbnailLocalPath);
 
-  if (!(videoFile?.url || thumbnailFile?.url)) {
+  if (!videoFile?.url || !thumbnailFile?.url) {
     throw new ApiError(500, "Upload failed; Please try again");
   }
 
@@ -125,7 +125,7 @@ const publishVideo = asyncHandler(async (req, res) => {
       },
       thumbnail: {
         url: thumbnailFile.url,
-        public_id: thumbnailFile.url,
+        public_id: thumbnailFile.public_id,
       },
 
       owner: req.user?._id, // video -> loggedin user
@@ -147,11 +147,13 @@ const publishVideo = asyncHandler(async (req, res) => {
     }
 
     if (thumbnailFile?.public_id) {
-      await deleteFromCloudinary(videoFile.public_id, "image");
+      await deleteFromCloudinary(thumbnailFile.public_id, "image");
     }
 
     throw error;
   }
 });
 
-export { getAllVideos };
+export { getAllVideos,
+    publishVideo
+ };
