@@ -1,10 +1,11 @@
 import mongoose, { isValidObjectId } from "mongoose";
-import { Video } from "../models/video.model";
-import { User } from "../models/user.model";
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/ApiResponse";
-import { asyncHandler } from "../utils/asyncHandler";
-import { uploadOnCloudinary } from "../utils/cloudinary";
+import { Video } from "../models/video.model.js";
+import { User } from "../models/user.model.js";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query; // search filters
@@ -40,6 +41,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   });
 
   //if user sorts by some type of filter: (most liked,4k , Hd,etc)
+  const sortField = {};
   if (sortBy) {
     sortField[sortBy] = sortType === "asc" ? 1 : -1;
   } else {
@@ -154,6 +156,211 @@ const publishVideo = asyncHandler(async (req, res) => {
   }
 });
 
-export { getAllVideos,
-    publishVideo
+const getVideoId = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (req.user?._id) {
+    await Video.findOneAndUpdate(videoId, { $inc: { views: 1 } }); // updating the view Count
+  }
+
+  const getVideoWithDetails = await Video.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(videoId),
+      },
+    },
+    // Comments
+    {
+      $lookup: {
+        from: "comments",
+        localField: "_id",
+        foreignField: "video",
+        as: "comments",
+        pipeline: [
+          {
+            $sort: { createdAt: -1 },
+          },
+          {
+            $limit: 10,
+          },
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "CommentOwnerDetails",
+              pipeline: [
+                {
+                  $project: {
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              CommentOwnerDetails: { $first: "$CommentOwnerDetails" },
+            },
+          },
+        ],
+      },
+    },
+    // Likes
+    {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "video",
+        as: "likes",
+      },
+    },
+    {
+      // owner
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              avatar: 1,
+              username: 1,
+            },
+          },
+          {
+            //subscribers of owners
+            $lookup: {
+              from: "subscriptions",
+              localField: "_id",
+              foreignField: "channel",
+              as: "subscribers",
+            },
+          },
+          {
+            $addFields: {
+              subscribersCount: {
+                $size: "$subscribers",
+              },
+              isSubscribed: {
+                $cond: {
+                  if: {
+                    $in: [
+                      new mongoose.Types.ObjectId(req.user?._id),
+                      "$subscribers.subscriber",
+                    ],
+                  },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              username: 1,
+              avatar: 1,
+              subscribersCount: 1,
+              isSubscribed: 1,
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        totalLikes: { $size: "$likes" },
+        isLiked: {
+          $cond: {
+            if: {
+              $in: [
+                new mongoose.Types.ObjectId(req.user?._id),
+                "$likes.likedBy",
+              ],
+            },
+            then: true,
+            else: false,
+          },
+        },
+        owner: { $first: "$owner" },
+      },
+    },
+  ]);
+
+  if (getVideoWithDetails.length === 0) {
+    throw new ApiError(404, "Video doesn't exists sorry");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        getVideoWithDetails[0],
+        "successfully fetched video detials"
+      )
+    );
+});
+
+const updateVideo = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  const { title, description, thumbnail } = req.body;
+
+  if (
+    title.trim() === "" ||
+    (!title && thumbnail.trim() === "") ||
+    (!thumbnail && !description)
+  ) {
+    throw new ApiError(400, " Required atleast one field to update");
+  }
+
+  const updateData = {};
+
+  if (title) {
+    updateData.title = title.trim();
+  }
+
+  if (description) {
+    updateData.description = description.trim();
+  }
+
+  if (thumbnail) {
+    updateData.thumbnail = thumbnail.trim();
+  }
+
+  const updateVideo = await Video.findOneAndUpdate(
+    {
+      _id: videoId,
+      owner: req.user?._id,
+    },
+    {
+      $set: updateData,
+    },
+    {
+      new: true,
+    }
+  );
+
+  if (!updateVideo) {
+    throw new ApiError(
+      404,
+      "Video not found or you are not authorized to update this video"
+    );
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, updateVideo, "Successfully updated video details")
+    );
+});
+
+
+export { 
+  getAllVideos,
+  publishVideo,
+  getVideoId,
+  updateVideo
  };
