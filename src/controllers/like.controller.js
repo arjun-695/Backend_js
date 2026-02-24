@@ -17,19 +17,26 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     likedBy: userId,
   });
 
-  existingLike? await Like.findByIdAndDelete(existingLike?._id): await Like.create({
-    video: videoId,
-    likedBy: userId
-  })
+  existingLike
+    ? await Like.findByIdAndDelete(existingLike?._id)
+    : await Like.create({
+        video: videoId,
+        likedBy: userId,
+      });
 
   return res
-  .status(200)
-  .json(new ApiResponse(200, {isLiked: existingLike? false: true}, existingLike? "Removed video liked": "Liked Video"))
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { isLiked: existingLike ? false : true },
+        existingLike ? "Removed video liked" : "Liked Video"
+      )
+    );
 });
 
-
-const toggleCommentLike = asyncHandler(async(req,res) => {
-    const { commentId } = req.params;
+const toggleCommentLike = asyncHandler(async (req, res) => {
+  const { commentId } = req.params;
   const userId = req.user?._id;
 
   if (isValidObjectId(commentId) === false) {
@@ -41,67 +48,83 @@ const toggleCommentLike = asyncHandler(async(req,res) => {
     likedBy: userId,
   });
 
-  existingLike? await Like.findByIdAndDelete(existingLike?._id): await Like.create({
-    comment: commentId,
-    likedBy: userId
-  })
+  existingLike
+    ? await Like.findByIdAndDelete(existingLike?._id)
+    : await Like.create({
+        comment: commentId,
+        likedBy: userId,
+      });
 
   return res
-  .status(200)
-  .json(new ApiResponse(200, {isLiked: existingLike? false: true}, existingLike? "Removed Comment like": "Liked Comment"))
-})
-
-const getLikedVideos = asyncHandler(async(req,res) => {
-    const userId = req.user?._id
-
-    const getAllLikedVideos = await Like.aggregate([
-        {
-            $match: {
-                likedBy: new mongoose.Types.ObjectId(userId),
-                video: {$exists: true} //like model can have likes for both comments and videos but it is not necessary if we have liked a comment then the video is also liked and vice versa w/o this operator it would fetch like document for both resulting in error as no video/comment is associated with that like document    
-            }
-        },
-        {
-            $lookup:{
-                from: "videos",
-                localField: "video",
-                foreignField: "_id",
-                as:"videoDetails",
-                pipeline: [
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "owner",
-                            foreignField: "_id",
-                            as: "ownerDetails"
-                        }
-                    },
-                    {
-                        $project: {
-                            refreshToken: 0,
-                            password: 0,
-                            createdAt: 0,
-                            updatedAt: 0,
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            $addFields: {
-                "videoDetails": {$arrayElementsAt: ["$videoDetails",0]}
-            }
-        }
-    ])
-
-
-     return res
     .status(200)
-    .json( new ApiResponse(200, {likedVideos: getAllLikedVideos}, "Fetched liked videos"))  
-})
+    .json(
+      new ApiResponse(
+        200,
+        { isLiked: existingLike ? false : true },
+        existingLike ? "Removed Comment like" : "Liked Comment"
+      )
+    );
+});
 
-export {
-    toggleCommentLike,
-    toggleVideoLike,
-    getLikedVideos
-}
+const getLikedVideos = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+
+  const getAllLikedVideos = await Like.aggregate([
+    {
+      $match: {
+        likedBy: new mongoose.Types.ObjectId(userId),
+        video: { $exists: true }, //like model can have likes for both comments and videos but it is not necessary if we have liked a comment then the video is also liked and vice versa w/o this operator it would fetch like document for both resulting in error as no video/comment is associated with that like document
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "video",
+        foreignField: "_id",
+        as: "videoDetails",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "ownerDetails",
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              ownerDetails: { $first: "$ownerDetails" },
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        // Your logic to flatten the videoDetails array. ($first works exactly like $arrayElementsAt index 0)
+        videoDetails: { $first: "$videoDetails" },
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { likedVideos: getAllLikedVideos },
+        "Fetched liked videos"
+      )
+    );
+});
+
+export { toggleCommentLike, toggleVideoLike, getLikedVideos };
