@@ -10,7 +10,7 @@ import {
 } from "../controllers/playlist.controller.js"
 
 import { verifyJWT} from "../middlewares/auth.middleware.js"
-import checkValidObjectId from '../middlewares/validateObjectId.middleware.js';
+import {checkValidObjectId} from '../middlewares/validateObjectId.middleware.js';
 
 const router = Router();
 
