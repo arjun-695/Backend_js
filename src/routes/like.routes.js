@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {checkValidObjectId} from '../middlewares/validateObjectId.middleware.js';
 import {getLikedVideos, toggleCommentLike, toggleVideoLike } from "../controllers/like.controller.js"
+import { cacheRoute } from '../middlewares/redis.middleware.js';
 
 const router = Router();
 router.use(verifyJWT); 

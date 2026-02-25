@@ -22,4 +22,4 @@ const likeSchema= new Schema({
 
 likeSchema.plugin(mongooseAggregatePaginate);
 
-export const like = mongoose.model("Like",likeSchema);
+export const Like = mongoose.model("Like",likeSchema);

@@ -10,13 +10,14 @@ import {
 import {verifyJWT} from "../middlewares/auth.middleware.js"
 import {upload} from "../middlewares/multer.middleware.js"
 import {checkValidObjectId} from '../middlewares/validateObjectId.middleware.js';
+import { cacheRoute } from '../middlewares/redis.middleware.js';
 
 const router = Router();
 router.use(verifyJWT)
 
 router
     .route("/")
-    .get(getAllVideos)
+    .get(cacheRoute(300),getAllVideos)
     .post(
         upload.fields([
             {

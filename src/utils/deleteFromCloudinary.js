@@ -24,4 +24,6 @@ const deleteFromCloudinary =
   }
 
 
-export default deleteFromCloudinary;
+export {
+   deleteFromCloudinary
+  };

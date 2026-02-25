@@ -11,6 +11,7 @@ import {
 
 import { verifyJWT} from "../middlewares/auth.middleware.js"
 import {checkValidObjectId} from '../middlewares/validateObjectId.middleware.js';
+import { cacheRoute } from '../middlewares/redis.middleware.js';
 
 const router = Router();
 

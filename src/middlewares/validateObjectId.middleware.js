@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { ApiError } from "../utils/apiError";
+import { ApiError } from "../utils/apiError.js";
 
 export const checkValidObjectId = (paramNamesArray) => {
 

@@ -1,14 +1,16 @@
 import {createClient } from 'redis';
+import dotenv from "dotenv"
 
 let isRedisConnected = false; 
 
 const redisClient = createClient({
-    url: process.env.Redis_URI || 'redis://localhost:6379',
+    url: process.env.REDIS_URI || 'redis://localhost:6379',
     socket: {
         //if redis is down try only 5 times otherwise infinite loop 
-        reconnect: (retries) => {
+        reconnectStrategy: (retries) => {
             if(retries> 5){
                 // console.log('Redis reconnet attempts exceeded')
+                
                 return false;//stop retrying 
             }
             return Math.min(retries * 50, 500); //Backoff strategy
@@ -81,6 +83,7 @@ export const deleteFromCache = async(key) => {
 };
 
 export default redisClient; 
+
 
 
 
