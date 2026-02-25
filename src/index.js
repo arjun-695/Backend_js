@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import connectDB from "./db/index.js";
 import { app } from "./app.js";
 
+import { connectRedis } from "./utils/redis.js";
+
 // important points for connecting data base:
 // always use try and catch or promises with database
 // always use async await for database because it is stored far away
@@ -11,7 +13,10 @@ dotenv.config({
   path: "./.env",
 });
 connectDB()
-  .then(() => {
+  .then( async() => {
+
+    await connectRedis();
+    
     app.listen(process.env.PORT || 8000, () => {
       console.log(`Server is running at port :
              ${process.env.PORT || 8000}`);
