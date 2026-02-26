@@ -5,6 +5,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import {deleteFromCache} from "../utils/redis.js"
 
 const getVideoComments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
@@ -88,7 +89,7 @@ const addComment = asyncHandler(async (req, res) => {
   if (!comment) {
     throw new ApiError(500, "Error while adding comment");
   }
-
+  await deleteFromCache(`cache:/api/v1/comments/${videoId}`);
   return res
     .status(200)
     .json(new ApiResponse(200, comment, "Comment added successfully"));
@@ -129,6 +130,9 @@ const updateComment = asyncHandler(async (req, res) => {
       "Something went wrong while updating comment, Please try again later"
     );
   }
+  const videoId = existingComment.video.toString();
+
+  await deleteFromCache(`cache:/api/v1/comments/${videoId}`);
 
   return res
     .status(200)
@@ -160,7 +164,8 @@ const deleteComment = asyncHandler(async (req, res) => {
   if (!deletedComment) {
     throw new ApiError(500, "Error while deleting comment, Please try again");
   }
-
+  const videoId = commentToDelete.video.toString();
+await deleteFromCache(`cache:/api/v1/comments/${videoId}`);
   return res
     .status(200)
     .json(new ApiResponse(200, null, "Comment deleted Successfully"));

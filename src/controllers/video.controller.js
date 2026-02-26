@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
+import { deleteFromCache } from "../utils/redis.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query; // search filters
@@ -143,7 +144,7 @@ const publishVideo = asyncHandler(async (req, res) => {
       isPublished: true,
     });
     // if create fails mongoose send a null or false value then and there so no need to check !uploadVideo it'll be handled by catch block
-
+    await deleteFromCache(`cache:/api/v1/videos`);
     return res
       .status(200)
       .json(new ApiResponse(200, uploadVideo, "Successfully uploaded Video"));
@@ -352,12 +353,11 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
 
     video.thumbnail = {
-    url: thumbnailFile.url,
-    public_id: thumbnailFile.public_id,
-  };
+      url: thumbnailFile.url,
+      public_id: thumbnailFile.public_id,
+    };
   }
 
-  
   const updatedVideo = await video.save({ validateBeforeSave: false });
 
   if (!updatedVideo) {
@@ -366,6 +366,8 @@ const updateVideo = asyncHandler(async (req, res) => {
       "Video not found or you are not authorized to update this video"
     );
   }
+
+  await deleteFromCache(`cache:/api/v1/videos`);
 
   return res
     .status(200)
@@ -441,6 +443,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
   if (video.thumbnail?.public_id) {
     await deleteFromCloudinary(video.thumbnail.public_id, "image");
   }
+    await deleteFromCache(`cache:/api/v1/videos/${videoId}`) //specific video cache 
 
   return res
     .status(200)
