@@ -12,18 +12,42 @@ const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query; // search filters
 
   const pipeline = [];
-  const defaultCriteria = {
-    isPublished: true,
-  };
+  
+//$search -> faster and handles typos too 
+//STRICT rules for $search: has to be in the first stage of pipeline and applied in pipeline only
+if(query){
+  pipeline.push({
+    $search: {
+      index: "video_search_index", //Exact index name from mongoDB
+      text: {
+        query: query, 
+        path: ["title", "description"],//fields to apply in
+        fuzzy: {
+          maxEdits: 2, //Typo-tolerance
+        }
+      }
+    }
+  })
+}
 
+
+/*  REGEX IMPLEMENTATION
   //if user searches smth
   if (query) {
     defaultCriteria.$or = [
       { title: { $regex: query, $options: "i" } }, //$regex -> search result based on what you typed or entered
       // $options: "i" -> makes the search case insensitive
+      
       { description: { $regex: query, $options: "i" } },
     ];
   }
+
+  */
+
+const defaultCriteria = {
+    isPublished: true,
+  };
+
 
   // if user visits a specific profile:
   if (userId) {
@@ -37,9 +61,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
   }
 
   //push the complete criteria as the first stage
+  // pushing the $match stage after the $search stage
   pipeline.push({
     $match: defaultCriteria,
   });
+
+//SORTING 
 
   //if user sorts by some type of filter: (most liked,4k , Hd,etc)
   const sortField = {};
@@ -53,6 +80,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     $sort: sortField,
   });
 
+  /* LOOKUP OWNER DETAILS */
   pipeline.push(
     {
       $lookup: {
@@ -82,6 +110,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
     page: parseInt(page),
     limit: parseInt(limit),
   }; //sends settings in the URL (e.g., ?page=2&limit=10).
+
+  /* PAGINATION */
 
   const paginatedVideos = await Video.aggregatePaginate(
     Video.aggregate(pipeline),
