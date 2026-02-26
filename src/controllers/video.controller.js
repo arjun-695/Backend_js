@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary,uploadVideoWithHLS } from "../utils/cloudinary.js";
 import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
 import { deleteFromCache } from "../utils/redis.js";
 
@@ -151,14 +151,14 @@ const publishVideo = asyncHandler(async (req, res) => {
   // to catch ghost files:
   // and pushing file to database after uploading to cloudinary
   try {
-    videoFile = await uploadOnCloudinary(videoFileLocalPath);
+    videoFile = await uploadVideoWithHLS(videoFileLocalPath);//uploading using HLS
     thumbnailFile = await uploadOnCloudinary(thumbnailLocalPath);
     if (!videoFile?.url || !thumbnailFile?.url) {
       throw new ApiError(500, "Upload failed; Please try again");
     }
     const uploadVideo = await Video.create({
       videoFile: {
-        url: videoFile.url,
+        url: videoFile.hls_url,//sending hls_url
         public_id: videoFile.public_id, //public_id for future deletion
       },
       thumbnail: {
