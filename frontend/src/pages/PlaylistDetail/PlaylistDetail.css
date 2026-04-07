@@ -1,0 +1,154 @@
+.playlist-detail-container {
+  display: flex;
+  gap: 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+  align-items: flex-start;
+}
+
+.playlist-detail-info {
+  width: 360px;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: sticky;
+  top: calc(var(--navbar-height) + 24px);
+}
+
+.playlist-hero-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: var(--bg-primary);
+}
+
+.playlist-hero-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(8px);
+  transform: scale(1.1);
+  opacity: 0.6;
+}
+
+.hero-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.playlist-text-content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Push text up over the blurred image slightly for a cool effect */
+  margin-top: -60px;
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(to top, var(--bg-elevated) 80%, transparent 100%);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.playlist-title-main {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.playlist-desc-main {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.playlist-stats {
+  display: flex;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.playlist-actions-main {
+  margin-top: 16px;
+}
+
+.play-all-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.05rem;
+}
+
+.play-all-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-elevated);
+  box-shadow: none;
+}
+
+/* Feed Area */
+.playlist-detail-feed {
+  flex: 1;
+  min-width: 0;
+}
+
+.playlist-video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.display-flex {
+  display: flex;
+}
+
+.playlist-video-row {
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  transition: background-color var(--transition-fast);
+}
+
+.playlist-video-row:hover {
+  background-color: var(--bg-elevated);
+}
+
+.video-index {
+  width: 24px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.video-card-wrapper {
+  flex: 1;
+  /* Override default VideoCard width inside this list to fit the row */
+  max-width: 400px;
+}
+
+.remove-video-btn {
+  color: var(--text-muted);
+  padding: 12px;
+}
+
+.remove-video-btn:hover {
+  color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+@media (max-width: 1024px) {
+  .playlist-detail-container {
+    flex-direction: column;
+  }
+
+  .playlist-detail-info {
+    width: 100%;
+    position: static;
+  }
+}

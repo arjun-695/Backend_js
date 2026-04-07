@@ -1,0 +1,56 @@
+.subscriptions-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.subscriptions-page h2 {
+  margin-bottom: 24px;
+}
+
+.subs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.sub-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.sub-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+.sub-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-elevated);
+}
+
+.sub-info h4 {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.sub-info p {
+  font-size: 0.85rem;
+}
+
+.subs-loading,
+.subs-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+}

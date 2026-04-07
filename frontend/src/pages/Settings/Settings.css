@@ -1,0 +1,75 @@
+.settings-page {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.settings-page h2 {
+  margin-bottom: 24px;
+}
+
+.settings-section {
+  padding: 24px;
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+}
+
+.settings-section h3 {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-form label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.settings-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.avatar-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar-settings-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-elevated);
+}
+
+.settings-success {
+  color: var(--success);
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.settings-error {
+  color: var(--danger);
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.settings-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh;
+}

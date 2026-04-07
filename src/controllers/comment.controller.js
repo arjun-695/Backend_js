@@ -1,14 +1,56 @@
 import mongoose from "mongoose";
 import { Comment } from "../models/comment.model.js";
 import { Video } from "../models/video.model.js";
-import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import {deleteFromCache} from "../utils/redis.js"
+import { deleteFromCache } from "../utils/redis.js";
+import {
+  analyzeCommentSentiment,
+  buildCommentSentimentOverview,
+} from "../utils/commentSentiment.js";
+
+const hasAnalyzedSentiment = (sentiment) =>
+  Boolean(sentiment?.analyzedAt && sentiment?.label);
+
+const backfillMissingCommentSentiments = async (videoId) => {
+  const commentsMissingSentiment = await Comment.find({
+    video: videoId,
+    $or: [
+      {
+        sentiment: {
+          $exists: false,
+        },
+      },
+      {
+        "sentiment.analyzedAt": {
+          $exists: false,
+        },
+      },
+    ],
+  }).select("_id content");
+
+  if (commentsMissingSentiment.length === 0) {
+    return;
+  }
+
+  await Comment.bulkWrite(
+    commentsMissingSentiment.map((comment) => ({
+      updateOne: {
+        filter: { _id: comment._id },
+        update: {
+          $set: {
+            sentiment: analyzeCommentSentiment(comment.content),
+          },
+        },
+      },
+    }))
+  );
+};
 
 const getVideoComments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+
   if (!mongoose.isValidObjectId(videoId) || !videoId) {
     throw new ApiError(400, "Invalid video Id");
   }
@@ -17,6 +59,8 @@ const getVideoComments = asyncHandler(async (req, res) => {
   if (!video) {
     throw new ApiError(404, "video not found");
   }
+
+  await backfillMissingCommentSentiments(videoId);
 
   const comments = Comment.aggregate([
     {
@@ -42,22 +86,38 @@ const getVideoComments = asyncHandler(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "comment",
+        as: "likes",
+      },
+    },
+    {
       $addFields: {
         ownerDetails: {
           $first: "$ownerDetails",
         },
+        likesCount: {
+          $size: "$likes",
+        },
       },
     },
     {
-      $sort: { createdAt: -1 }, // Show newest comments first!
+      $project: {
+        likes: 0,
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
     },
   ]);
 
   const { page = 1, limit = 10 } = req.query;
 
   const options = {
-    page: parseInt(page) || 1,
-    limit: parseInt(limit) || 10,
+    page: parseInt(page, 10) || 1,
+    limit: parseInt(limit, 10) || 10,
   };
 
   const result = await Comment.aggregatePaginate(comments, options);
@@ -66,9 +126,30 @@ const getVideoComments = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Error while fetching comments ");
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, result, "Comments fetched successfully"));
+  const commentsForOverview = await Comment.find({ video: videoId })
+    .populate("owner", "fullname username avatar")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const normalizedCommentsForOverview = commentsForOverview.map((comment) => ({
+    ...comment,
+    sentiment: hasAnalyzedSentiment(comment.sentiment)
+      ? comment.sentiment
+      : analyzeCommentSentiment(comment.content),
+  }));
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        ...result,
+        sentimentOverview: buildCommentSentimentOverview(
+          normalizedCommentsForOverview
+        ),
+      },
+      "Comments fetched successfully"
+    )
+  );
 });
 
 const addComment = asyncHandler(async (req, res) => {
@@ -76,20 +157,30 @@ const addComment = asyncHandler(async (req, res) => {
   const { _id } = req.user;
   const { content } = req.body;
 
-  if (!content || content.trim() == "") {
-    throw new ApiError("400", "Comment cannot be empty");
+  if (!content || content.trim() === "") {
+    throw new ApiError(400, "Comment cannot be empty");
   }
 
+  const video = await Video.findById(videoId);
+  if (!video) {
+    throw new ApiError(404, "video not found");
+  }
+
+  const trimmedContent = content.trim();
+
   const comment = await Comment.create({
-    content: content,
+    content: trimmedContent,
     video: videoId,
     owner: _id,
+    sentiment: analyzeCommentSentiment(trimmedContent),
   });
 
   if (!comment) {
     throw new ApiError(500, "Error while adding comment");
   }
+
   await deleteFromCache(`cache:/api/v1/comments/${videoId}`);
+
   return res
     .status(200)
     .json(new ApiResponse(200, comment, "Comment added successfully"));
@@ -114,29 +205,34 @@ const updateComment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Comment doesn't exists.");
   }
 
-  if (existingComment?.owner.toString() !== _id.toString()) {
+  if (existingComment.owner.toString() !== _id.toString()) {
     throw new ApiError(403, " You are not authorized to update this comment");
   }
 
-  const updatedcomment = await Comment.findByIdAndUpdate(
+  const trimmedContent = newContent.trim();
+
+  const updatedComment = await Comment.findByIdAndUpdate(
     commentId,
-    { content: newContent },
+    {
+      content: trimmedContent,
+      sentiment: analyzeCommentSentiment(trimmedContent),
+    },
     { new: true }
   );
 
-  if (!updatedcomment) {
+  if (!updatedComment) {
     throw new ApiError(
       500,
       "Something went wrong while updating comment, Please try again later"
     );
   }
-  const videoId = existingComment.video.toString();
 
+  const videoId = existingComment.video.toString();
   await deleteFromCache(`cache:/api/v1/comments/${videoId}`);
 
   return res
     .status(200)
-    .json(new ApiResponse(200, updatedcomment, "Comment updated successfully"));
+    .json(new ApiResponse(200, updatedComment, "Comment updated successfully"));
 });
 
 const deleteComment = asyncHandler(async (req, res) => {
@@ -152,7 +248,7 @@ const deleteComment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Comment not found");
   }
 
-  if (commentToDelete?.owner.toString() !== req.user?._id.toString()) {
+  if (commentToDelete.owner.toString() !== req.user?._id.toString()) {
     throw new ApiError(403, "You are not authorized to delete this comment");
   }
 
@@ -164,8 +260,10 @@ const deleteComment = asyncHandler(async (req, res) => {
   if (!deletedComment) {
     throw new ApiError(500, "Error while deleting comment, Please try again");
   }
+
   const videoId = commentToDelete.video.toString();
-await deleteFromCache(`cache:/api/v1/comments/${videoId}`);
+  await deleteFromCache(`cache:/api/v1/comments/${videoId}`);
+
   return res
     .status(200)
     .json(new ApiResponse(200, null, "Comment deleted Successfully"));

@@ -5,58 +5,64 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 
-This is a comprehensive and robust backend API built for a video hosting platform (similar to YouTube). It provides essential features to run a media-rich application, including secure user authentication, complex video uploading systems, user engagement mechanics, and playlist management.
+This is a comprehensive backend API for a video hosting platform similar to YouTube. It covers secure authentication, video publishing, media delivery, playlists, subscriptions, likes, comments, and creator-facing tools for richer video metadata.
 
-## 🚀 Key Features
+## Key Features
 
-- **User Authentication:** Robust, secure signup and login using JSON Web Tokens (JWT) and bcrypt password hashing.
-- **Video Management:** Scalable video uploading, management, and publishing. Integrates securely with Cloudinary for fast media delivery.
-- **Performance:** Endpoints leverage **Redis** caching for optimized response times.
-- **Engagement Mechanics:** Users can like or dislike videos and comments.
-- **Comments System:** Extensive hierarchical commenting capabilities on published videos.
-- **Subscriptions:** Powerful subscription system to follow favorite channels/users and track subscriber counts.
-- **Playlists:** End-users can curate, manage, and share customized video playlists.
-- **File Uploads:** Secure `multipart/form-data` handling using Multer, supporting image (avatars/covers) and video (content) uploads.
+- **User Authentication:** Secure signup and login using JSON Web Tokens (JWT) and bcrypt password hashing.
+- **Video Management:** Video upload, publishing, editing, and deletion with Cloudinary-backed media storage.
+- **Video Summaries:** Each video can store an auto-generated summary using its title, description, and optional transcript text.
+- **Comment Sentiment Analysis:** Each comment is automatically scored as positive, neutral, or negative, and comment feeds expose a discussion-level sentiment overview.
+- **Performance:** Endpoints leverage Redis caching for improved response times.
+- **Engagement Mechanics:** Users can like videos and comments, subscribe to channels, and manage playlists.
+- **File Uploads:** Secure `multipart/form-data` handling using Multer for images and videos.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Environment:** Node.js
 - **Framework:** Express.js
-- **Database:** MongoDB & Mongoose (ODM)
+- **Database:** MongoDB and Mongoose
 - **Caching:** Redis
-- **Authentication:** JWT (JSON Web Tokens)
-- **Security:** bcrypt (Password Hashing)
+- **Authentication:** JWT
+- **Security:** bcrypt
 - **Media Storage:** Cloudinary
 - **File Parsing:** Multer
 
-## 📡 Core API Endpoints
+## Core API Endpoints
 
-The API is prefixed with `/api/v1/`. Below is a selection of the major endpoints available:
+The API is prefixed with `/api/v1/`.
 
 ### Users `/api/v1/users`
 
-- `POST /register` - Register a new user (with avatar and cover image upload).
-- `POST /login` - Log in user and generate JWT tokens.
-- `POST /logout` - Log out current user (Secured).
-- `POST /refreshtoken` - Refresh access token.
-- `GET /current-user` - Get details of the currently logged-in user.
-- `GET /c/:username` - Get channel profile by username.
-- `GET /history` - Get user watch history.
-- `PATCH /update-account` - Update text details.
-- `PATCH /avatar` & `/cover-Image` - Update profile media.
+- `POST /register` - Register a new user with avatar and cover image uploads.
+- `POST /login` - Log in a user and generate JWT tokens.
+- `POST /logout` - Log out the current user.
+- `POST /refreshtoken` - Refresh the access token.
+- `GET /current-user` - Fetch the currently logged-in user.
+- `GET /c/:username` - Fetch a channel profile by username.
+- `GET /history` - Fetch watch history.
+- `PATCH /update-account` - Update account text fields.
+- `PATCH /avatar` and `PATCH /cover-Image` - Update profile media.
 
 ### Videos `/api/v1/videos`
 
-- `GET /` - Retrieve paginated videos (Optimized with Redis cache ⚡).
-- `POST /` - Upload and publish a new video with thumbnail.
-- `GET /:videoId` - Get a specific video.
-- `PATCH /:videoId` - Update video details.
+- `GET /` - Retrieve paginated videos.
+- `POST /` - Upload and publish a new video with thumbnail and optional `transcript` text.
+- `GET /:videoId` - Fetch a specific video with its generated summary.
+- `PATCH /:videoId` - Update video details and refresh the stored summary when relevant fields change.
 - `DELETE /:videoId` - Delete a video.
 - `PATCH /toggle/publish/:videoId` - Toggle publish status.
 
-_(Other routers available: `/comments`, `/likes`, `/playlists`, `/subscriptions`)_
+### Comments `/api/v1/comments`
 
-## ⚙️ Setup & Installation
+- `GET /:videoId` - Fetch paginated comments plus a sentiment overview for the full discussion.
+- `POST /:videoId` - Add a comment with automatic sentiment scoring.
+- `PATCH /c/:commentId` - Update a comment and recompute sentiment.
+- `DELETE /c/:commentId` - Remove a comment.
+
+Other routers are available for likes, playlists, and subscriptions.
+
+## Setup and Installation
 
 **1. Clone the repository**
 
@@ -72,7 +78,8 @@ npm install
 ```
 
 **3. Set up environment variables**
-Create a `.env` file in the root directory and add the following context (configure with your own values):
+
+Create a `.env` file in the root directory and add the following values:
 
 ```env
 PORT=8000
@@ -89,21 +96,23 @@ CLOUDINARY_API_KEY=<your_cloudinary_api_key>
 CLOUDINARY_API_SECRET=<your_cloudinary_api_secret>
 ```
 
-**4. Run the Development Server**
+Optional note: when uploading a video, you can include a `transcript` field in the multipart form body to improve summary quality.
+
+**4. Run the development server**
 
 ```bash
 npm run dev
 ```
 
-The server will start running with `nodemon` and experimental JSON modules enabled!
+The backend uses `nodemon`, loads environment variables from `.env`, and starts after the database connection succeeds.
 
-## 📁 Project Structure Highlights
+## Project Structure Highlights
 
-- **`src/models/`**: Defines the Mongoose schemas (User, Video, Comment, Like, Subscription, Playlist).
-- **`src/routes/`**: Holds API endpoint routers corresponding to each major feature block.
-- **`src/controllers/`**: Contains the business logic for the routes.
-- **`src/middlewares/`**: Custom Express middlewares for authentication, file validation, Multer uploads, and Redis caching.
-- **`src/utils/`**: Helper functions like API error handling and typical response formatting.
+- **`src/models/`**: Mongoose schemas for users, videos, comments, likes, subscriptions, and playlists.
+- **`src/routes/`**: Express routers for each feature area.
+- **`src/controllers/`**: Route-level business logic.
+- **`src/middlewares/`**: Authentication, validation, uploads, and caching middleware.
+- **`src/utils/`**: Shared helpers for API responses, error handling, cloud storage, caching, summaries, and sentiment analysis.
 
 ---
 

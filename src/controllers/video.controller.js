@@ -4,34 +4,63 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary,uploadVideoWithHLS } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, uploadVideoWithHLS } from "../utils/cloudinary.js";
 import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
 import { deleteFromCache } from "../utils/redis.js";
+import { generateVideoSummary } from "../utils/videoSummary.js";
+
+const buildVideoSummary = (video) =>
+  generateVideoSummary({
+    title: video?.title || "",
+    description: video?.description || "",
+    transcript: video?.transcript || "",
+  });
+
+const hasGeneratedSummary = (summary) =>
+  Boolean(summary?.short?.trim() || summary?.detailed?.trim());
+
+const ensureVideoSummary = async (videoId, existingSummary) => {
+  if (hasGeneratedSummary(existingSummary)) {
+    return existingSummary;
+  }
+
+  const video = await Video.findById(videoId).select(
+    "title description transcript summary"
+  );
+
+  if (!video) {
+    throw new ApiError(404, "Video doesn't exists sorry");
+  }
+
+  video.summary = buildVideoSummary(video);
+  await video.save({ validateBeforeSave: false });
+
+  return video.summary;
+};
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query; // search filters
 
   const pipeline = [];
-  
-//$search -> faster and handles typos too 
-//STRICT rules for $search: has to be in the first stage of pipeline and applied in pipeline only
-if(query){
-  pipeline.push({
-    $search: {
-      index: "video_search_index", //Exact index name from mongoDB
-      text: {
-        query: query, 
-        path: ["title", "description"],//fields to apply in
-        fuzzy: {
-          maxEdits: 2, //Typo-tolerance
-        }
-      }
-    }
-  })
-}
 
+  //$search -> faster and handles typos too
+  //STRICT rules for $search: has to be in the first stage of pipeline and applied in pipeline only
+  if (query) {
+    pipeline.push({
+      $search: {
+        index: "video_search_index", //Exact index name from mongoDB
+        text: {
+          query: query,
+          path: ["title", "description"], //fields to apply in
+          fuzzy: {
+            maxEdits: 2, //Typo-tolerance
+          },
+        },
+      },
+    });
+  }
 
-/*  REGEX IMPLEMENTATION
+  /*  REGEX IMPLEMENTATION
   //if user searches smth
   if (query) {
     defaultCriteria.$or = [
@@ -44,10 +73,9 @@ if(query){
 
   */
 
-const defaultCriteria = {
+  const defaultCriteria = {
     isPublished: true,
   };
-
 
   // if user visits a specific profile:
   if (userId) {
@@ -66,7 +94,7 @@ const defaultCriteria = {
     $match: defaultCriteria,
   });
 
-//SORTING 
+  //SORTING
 
   //if user sorts by some type of filter: (most liked,4k , Hd,etc)
   const sortField = {};
@@ -104,6 +132,11 @@ const defaultCriteria = {
           $first: "$owner" /* $first picks the specific object needed.*/,
         },
       },
+    },
+    {
+      $project: {
+        transcript: 0,
+      },
     }
   );
   const options = {
@@ -132,7 +165,7 @@ const publishVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please login and try again");
   }
 
-  const { title, description } = req.body;
+  const { title, description, transcript = "" } = req.body;
 
   if (!title?.trim() || !description?.trim()) {
     throw new ApiError(400, "Title and description are required.");
@@ -151,14 +184,14 @@ const publishVideo = asyncHandler(async (req, res) => {
   // to catch ghost files:
   // and pushing file to database after uploading to cloudinary
   try {
-    videoFile = await uploadVideoWithHLS(videoFileLocalPath);//uploading using HLS
+    videoFile = await uploadVideoWithHLS(videoFileLocalPath); //uploading using HLS
     thumbnailFile = await uploadOnCloudinary(thumbnailLocalPath);
     if (!videoFile?.url || !thumbnailFile?.url) {
       throw new ApiError(500, "Upload failed; Please try again");
     }
     const uploadVideo = await Video.create({
       videoFile: {
-        url: videoFile.hls_url,//sending hls_url
+        url: videoFile.hls_url, //sending hls_url
         public_id: videoFile.public_id, //public_id for future deletion
       },
       thumbnail: {
@@ -169,6 +202,12 @@ const publishVideo = asyncHandler(async (req, res) => {
       owner: req.user?._id, // video -> loggedin user
       title: title.trim(),
       description: description.trim(),
+      transcript: transcript.trim(),
+      summary: buildVideoSummary({
+        title: title.trim(),
+        description: description.trim(),
+        transcript: transcript.trim(),
+      }),
       duration: videoFile.duration, // getting duration from cloudinary directly
       views: 0,
       isPublished: true,
@@ -201,6 +240,14 @@ const getVideoId = asyncHandler(async (req, res) => {
 
   if (req.user?._id) {
     await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }); // updating the view Count
+
+    // Add to watch history (remove old entry first to avoid duplicates, then push to end)
+    await User.findByIdAndUpdate(req.user._id, {
+      $pull: { watchHistory: new mongoose.Types.ObjectId(videoId) },
+    });
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: { watchHistory: new mongoose.Types.ObjectId(videoId) },
+    });
   }
 
   const getVideoWithDetails = await Video.aggregate([
@@ -327,18 +374,29 @@ const getVideoId = asyncHandler(async (req, res) => {
         owner: { $first: "$owner" },
       },
     },
+    {
+      $project: {
+        transcript: 0,
+      },
+    },
   ]);
 
   if (getVideoWithDetails.length === 0) {
     throw new ApiError(404, "Video doesn't exists sorry");
   }
 
+  const videoWithDetails = getVideoWithDetails[0];
+  videoWithDetails.summary = await ensureVideoSummary(
+    videoWithDetails._id,
+    videoWithDetails.summary
+  );
+
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        getVideoWithDetails[0],
+        videoWithDetails,
         "successfully fetched video detials"
       )
     );
@@ -346,10 +404,11 @@ const getVideoId = asyncHandler(async (req, res) => {
 
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
-  const { title, description } = req.body;
+  const { title, description, transcript } = req.body;
   const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path || req.file?.path;
+  const hasTranscriptUpdate = typeof transcript === "string";
 
-  if (!title && !description && !thumbnailLocalPath) {
+  if (!title && !description && !thumbnailLocalPath && !hasTranscriptUpdate) {
     throw new ApiError(400, "Required at least one field to update");
   }
 
@@ -365,11 +424,22 @@ const updateVideo = asyncHandler(async (req, res) => {
     );
   }
 
+  let shouldRefreshSummary = false;
+
   if (title) {
     video.title = title.trim();
+    shouldRefreshSummary = true;
   }
 
-  if (description) video.description = description.trim();
+  if (description) {
+    video.description = description.trim();
+    shouldRefreshSummary = true;
+  }
+
+  if (hasTranscriptUpdate) {
+    video.transcript = transcript.trim();
+    shouldRefreshSummary = true;
+  }
 
   if (thumbnailLocalPath) {
     const thumbnailFile = await uploadOnCloudinary(thumbnailLocalPath);
@@ -386,6 +456,10 @@ const updateVideo = asyncHandler(async (req, res) => {
       url: thumbnailFile.url,
       public_id: thumbnailFile.public_id,
     };
+  }
+
+  if (shouldRefreshSummary) {
+    video.summary = buildVideoSummary(video);
   }
 
   const updatedVideo = await video.save({ validateBeforeSave: false });
@@ -415,35 +489,28 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid Video ID format");
   }
 
-  const toggleStatus = await Video.findOneAndUpdate(
-    {
-      _id: videoId,
-      owner: userId,
-    },
-    [
-      {
-        $set: {
-          // Toggles the current boolean value
-          isPublished: { $not: "$isPublished" },
-        },
-      },
-    ],
-    {
-      new: true, // Returns the updated document instead of the old one
-    }
-  );
-  if (!toggleStatus) {
+  // First find the video to get its current status
+  const video = await Video.findOne({
+    _id: videoId,
+    owner: userId,
+  });
+
+  if (!video) {
     throw new ApiError(
       404,
       "Video not found or you are not authorized to update this video"
     );
   }
 
+  // Toggle the publish status
+  video.isPublished = !video.isPublished;
+  await video.save({ validateBeforeSave: false });
+
+  await deleteFromCache(`cache:/api/v1/videos`);
+
   return res
     .status(200)
-    .json(
-      new ApiResponse(200, toggleStatus, "Successfully toggled publish status")
-    );
+    .json(new ApiResponse(200, video, "Successfully toggled publish status"));
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
@@ -473,7 +540,8 @@ const deleteVideo = asyncHandler(async (req, res) => {
   if (video.thumbnail?.public_id) {
     await deleteFromCloudinary(video.thumbnail.public_id, "image");
   }
-    await deleteFromCache(`cache:/api/v1/videos/${videoId}`) //specific video cache 
+  await deleteFromCache(`cache:/api/v1/videos/${videoId}`); //specific video cache
+  await deleteFromCache(`cache:/api/v1/videos`); //general videos list cache
 
   return res
     .status(200)

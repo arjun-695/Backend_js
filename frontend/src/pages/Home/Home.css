@@ -1,0 +1,119 @@
+.home-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.home-loading,
+.home-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - var(--navbar-height) - 48px);
+  color: var(--text-secondary);
+}
+
+.home-error {
+  gap: 16px;
+}
+
+.home-error h2 {
+  color: var(--danger);
+  font-size: 2rem;
+}
+
+.spinner {
+  color: var(--accent-primary);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Categories Filter */
+.categories-filter {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.categories-filter::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.category-btn {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  border: 1px solid var(--border-color);
+}
+
+.category-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.category-btn:first-child {
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+/* Video Grid Layout */
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px 16px;
+}
+
+.no-videos {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  background-color: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-color);
+}
+
+.no-videos h3 {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.no-videos p {
+  color: var(--text-muted);
+}
+
+/* Responsive adjustments */
+@media (min-width: 1400px) {
+  .video-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1800px) {
+  .video-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .video-grid {
+    grid-template-columns: 1fr;
+  }
+}

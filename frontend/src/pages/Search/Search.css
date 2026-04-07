@@ -1,0 +1,26 @@
+.search-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.search-heading {
+  font-size: 1.25rem;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+}
+
+.text-accent {
+  color: var(--accent-primary);
+}
+
+.search-loading,
+.search-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+}
+
+.search-error {
+  color: var(--danger);
+}
