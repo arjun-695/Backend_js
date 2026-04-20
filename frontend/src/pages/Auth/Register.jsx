@@ -76,7 +76,7 @@ const Register = () => {
 
       // Auto login after successful registration
       await login(formData.email, undefined, formData.password);
-      navigate("/");
+      navigate("/home");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create account.");
     } finally {
@@ -90,7 +90,7 @@ const Register = () => {
         <div className="auth-header">
           <div className="brand-logo-large">▶</div>
           <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join VideoHub today</p>
+          <p className="auth-subtitle">Join VidSeam today</p>
         </div>
 
         {error && (

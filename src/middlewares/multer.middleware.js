@@ -1,8 +1,9 @@
 import multer from "multer";
+import os from "os";
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "./public/temp") //filepath; store file temp on local memory 
+    cb(null, os.tmpdir()) // use system temp directory for serverless compat
   },
   filename: function (req, file, cb) {
     

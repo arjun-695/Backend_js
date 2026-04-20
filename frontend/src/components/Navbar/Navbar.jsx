@@ -38,7 +38,7 @@ const Navbar = ({ toggleSidebar }) => {
         </button>
         <Link to="/" className="brand-link">
           <div className="brand-logo">▶</div>
-          <span className="brand-name gradient-text">VideoHub</span>
+          <span className="brand-name gradient-text">VidSeam</span>
         </Link>
       </div>
 

@@ -1,11 +1,12 @@
 {
-  "name": "backend_heavy",
+  "name": "vidseam",
   "version": "1.0.0",
   "description": "a backend heavy project",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
+    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
+    "build": "npm --prefix frontend install && npm run build --prefix frontend"
   },
   "keywords": [
     "javascript",
@@ -27,6 +28,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.5",
     "mongoose-aggregate-paginate-v2": "^1.1.4",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "redis": "^5.12.1"
   }
 }

@@ -1,8 +1,11 @@
 import axios from "axios";
 
+// Automatically use the correct URL for local development vs Vercel
+const API_URL = import.meta.env.PROD ? "/api/v1" : "http://localhost:8000/api/v1";
+
 // Create an instance of axios
 const api = axios.create({
-  baseURL: "http://localhost:8000/api/v1",
+  baseURL: API_URL,
   withCredentials: true, // Important for cookies if we use them for refresh token
 });
 
@@ -37,7 +40,7 @@ api.interceptors.response.use(
         // Attempt to refresh the token using refresh token in cookies or storage
         // The backend `/users/refreshtoken` endpoint should handle this if configured properly.
         const res = await axios.post(
-          "http://localhost:8000/api/v1/users/refreshtoken",
+          `${API_URL}/users/refreshtoken`,
           {},
           {
             withCredentials: true, // send cookies

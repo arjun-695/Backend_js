@@ -26,7 +26,7 @@ const Login = () => {
         !isEmail ? identifier : undefined,
         password
       );
-      navigate("/");
+      navigate("/home");
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -43,7 +43,7 @@ const Login = () => {
         <div className="auth-header">
           <div className="brand-logo-large">▶</div>
           <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Sign in to continue to VideoHub</p>
+          <p className="auth-subtitle">Sign in to continue to VidSeam</p>
         </div>
 
         {error && (
